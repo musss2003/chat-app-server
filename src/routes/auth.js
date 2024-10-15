@@ -3,9 +3,13 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const router = express.Router();
+const auth = require('../middlewares/auth');
+
 // Register
 router.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
+    console.log(username, email, password);
+
     try {
         const user = new User({ username, email, password });
         await user.save();
@@ -18,17 +22,25 @@ router.post('/register', async (req, res) => {
 // Login
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
+
     try {
         const user = await User.findOne({ username });
-        
-        if (!user) return res.status(400).send('Invalid email or password');
+
+
+        if (!user) return res.status(400).send('Invalid username or password');
 
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).send('Invalid email or password');
+
+        if (!isMatch) return res.status(400).send('Invalid username or password');
 
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token });
+        // Convert user document to plain JavaScript object and delete password field
+        const userObj = user.toObject();
+        delete userObj.password;
+
+        res.json({ token, user: userObj });
     } catch (error) {
+        console.log(error);
         res.status(500).send(error.message);
     }
 });
@@ -86,5 +98,19 @@ router.post('/reset-password/:token', async (req, res) => {
         res.status(500).send(error.message);
     }
 });
+
+// Route to get current user information
+router.get('/me', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId).select('-password'); // Exclude password field
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        res.json({ user });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
 
 module.exports = router;

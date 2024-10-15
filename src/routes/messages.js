@@ -6,7 +6,8 @@ const router = express.Router();
 // Send a message
 router.post('/', auth, async (req, res) => {
     const { content, receiver } = req.body;
-    const sender = req.user.userId;
+
+    const sender = req.user._id;
 
     const message = new Message({
         content,
@@ -22,23 +23,20 @@ router.post('/', auth, async (req, res) => {
     }
 });
 
-// Fetch messages between two users
-router.get('/:userId', auth, async (req, res) => {
-    const { userId } = req.params;
-    const currentUserId = req.user.userId;
-
+// Get messages between two users
+router.get('/:receiverId', auth, async (req, res) => {
     try {
         const messages = await Message.find({
             $or: [
-                { sender: currentUserId, receiver: userId },
-                { sender: userId, receiver: currentUserId },
+                { sender: req.user._id, receiver: req.params.receiverId },
+                { sender: req.params.receiverId, receiver: req.user._id },
             ],
-        }).sort({ timestamp: 1 });
-
+        }).sort('timestamp');
         res.json(messages);
     } catch (error) {
-        res.status(500).json({ error: 'Error fetching messages' });
+        res.status(500).send('Server error');
     }
 });
+
 
 module.exports = router;
