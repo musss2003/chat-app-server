@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const { timeStamp } = require('console');
+const { type } = require('os');
 
 const userSchema = new mongoose.Schema({
     username: {
@@ -16,6 +18,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    timeStamp: {
+        type: Date,
+        default: Date.now,
+    }
 });
 
 // Hash password before saving

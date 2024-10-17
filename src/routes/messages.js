@@ -1,29 +1,27 @@
 const express = require('express');
+const router = express.Router();
 const Message = require('../models/Message');
 const auth = require('../middlewares/auth');
-const router = express.Router();
 
-// Send a message
-router.post('/', auth, async (req, res) => {
-    const { content, receiver } = req.body;
-
-    const sender = req.user._id;
-
-    const message = new Message({
-        content,
-        sender,
-        receiver,
-    });
-
+// Fetch all unique chat participants for the authenticated user
+router.get('/chats', async (req, res) => {
     try {
-        await message.save();
-        res.status(201).json(message);
+        const userId = req.query.userId;
+
+        // Find all unique chat participants
+        const sentMessages = await Message.find({ sender: userId }).distinct('receiver');
+        const receivedMessages = await Message.find({ receiver: userId }).distinct('sender');
+
+        const uniqueChatParticipants = [...new Set([...sentMessages, ...receivedMessages])];
+
+        res.json(uniqueChatParticipants);
     } catch (error) {
-        res.status(500).json({ error: 'Error sending message' });
+        res.status(500).json({ message: 'Error fetching chats' });
     }
 });
 
-// Get messages between two users
+
+// Fetch chat history between authenticated user and another user
 router.get('/:receiverId', auth, async (req, res) => {
     try {
         const messages = await Message.find({
@@ -38,5 +36,19 @@ router.get('/:receiverId', auth, async (req, res) => {
     }
 });
 
+// Send a message
+router.post('/send', auth, async (req, res) => {
+
+    const { content, receiver } = req.body;
+    const sender = req.user._id;
+
+    try {
+        const newMessage = new Message({ content, sender, receiver });
+        const savedMessage = await newMessage.save();
+        res.status(201).json(savedMessage);
+    } catch (error) {
+        res.status(500).json({ message: 'Error sending message' });
+    }
+});
 
 module.exports = router;

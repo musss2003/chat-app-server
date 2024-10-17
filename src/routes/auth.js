@@ -102,10 +102,7 @@ router.post('/reset-password/:token', async (req, res) => {
 // Route to get current user information
 router.get('/me', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId).select('-password'); // Exclude password field
-        if (!user) return res.status(404).json({ message: 'User not found' });
-
-        res.json({ user });
+        res.status(200).json({ user: req.user, token: req.token }) 
     } catch (err) {
         res.status(500).json({ message: 'Server error' });
     }

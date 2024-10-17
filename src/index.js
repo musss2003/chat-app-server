@@ -6,6 +6,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const authRoutes = require("./routes/auth");
 const messageRoutes = require("./routes/messages");
+const userRoutes = require("./routes/users");
 const Message = require('./models/Message');
 const auth = require('./middlewares/auth');
 
@@ -24,6 +25,7 @@ app.use(cors());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/users", auth, userRoutes);
 
 const io = socketIO(server, {
     cors: {
