@@ -83,8 +83,6 @@ router.get('/chats', auth, async (req, res) => {
 
 // Fetch chat history between authenticated user and another user
 router.get('/:selectedUserId', auth, async (req, res) => {
-    
-    console.log('Fetching messages between', req.user._id, 'and', req.params.selectedUserId);
 
     try {
         const messages = await Message.find({
