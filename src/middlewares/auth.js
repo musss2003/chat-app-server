@@ -7,9 +7,6 @@ const auth = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET); // Replace 'your_jwt_secret' with your actual secret
         const user = await User.findOne({ _id: decoded.userId });
 
-        // Update user's timestamp
-        user.timeStamp = Date.now();
-
         if (!user) {
             throw new Error();
         }

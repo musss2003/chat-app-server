@@ -20,6 +20,7 @@ router.get('/search', auth, async (req, res) => {
             ],
             _id: { $ne: currentUserId } // Exclude the current user
         }).select('-password'); // Exclude the password field
+
         res.status(200).send(users);
     } catch (error) {
         res.status(500).send({ message: 'Error searching users' });

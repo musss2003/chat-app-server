@@ -4,21 +4,85 @@ const Message = require('../models/Message');
 const auth = require('../middlewares/auth');
 
 // Fetch all unique chat participants for the authenticated user
-router.get('/chats', async (req, res) => {
+// Fetch the last messages sent or received to or from different users for the authenticated user
+router.get('/chats', auth, async (req, res) => {
     try {
-        const userId = req.query.userId;
+        const userId = req.user._id;
 
-        // Find all unique chat participants
-        const sentMessages = await Message.find({ sender: userId }).distinct('receiver');
-        const receivedMessages = await Message.find({ receiver: userId }).distinct('sender');
+        const messages = await Message.aggregate([
+            {
+                $match: {
+                    $or: [{ sender: userId }, { receiver: userId }]
+                }
+            },
+            {
+                $sort: { timestamp: -1 }
+            },
+            {
+                $group: {
+                    _id: {
+                        $cond: [
+                            { $eq: ["$sender", userId] },
+                            "$receiver",
+                            "$sender"
+                        ]
+                    },
+                    lastMessage: { $first: "$$ROOT" }
+                }
+            },
+            {
+                $replaceRoot: { newRoot: "$lastMessage" }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'sender',
+                    foreignField: '_id',
+                    as: 'senderDetails'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'receiver',
+                    foreignField: '_id',
+                    as: 'receiverDetails'
+                }
+            },
+            {
+                $unwind: "$senderDetails"
+            },
+            {
+                $unwind: "$receiverDetails"
+            },
+            {
+                $project: {
+                    content: 1,
+                    timestamp: 1,
+                    sender: {
+                        _id: "$senderDetails._id",
+                        username: "$senderDetails.username"
+                    },
+                    receiver: {
+                        _id: "$receiverDetails._id",
+                        username: "$receiverDetails.username"
+                    }
+                }
+            },
+            {
+                $sort: { timestamp: -1 } // Sort by timestamp in descending order
+            }
+        ]);
 
-        const uniqueChatParticipants = [...new Set([...sentMessages, ...receivedMessages])];
+        console.log(messages);
 
-        res.json(uniqueChatParticipants);
+        res.json(messages);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching chats' });
     }
 });
+
+module.exports = router;
 
 
 // Fetch chat history between authenticated user and another user

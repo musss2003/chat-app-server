@@ -9,6 +9,7 @@ const messageRoutes = require("./routes/messages");
 const userRoutes = require("./routes/users");
 const Message = require('./models/Message');
 const auth = require('./middlewares/auth');
+const User = require('./models/user');
 
 const app = express();
 const server = http.createServer(app);
@@ -50,6 +51,19 @@ io.on("connection", (socket) => {
             io.emit("receiveMessage", message);
         } catch (error) {
             console.error("Error saving message:", error);
+        }
+    });
+
+    socket.on('userOnline', async (userId) => {
+        try {
+            const user = await User.findById(userId);
+            if (user) {
+                user.timeStamp = new Date();
+                await user.save();
+                console.log(`Updated timeStamp for user ${userId}`);
+            }
+        } catch (error) {
+            console.error('Error updating timeStamp:', error);
         }
     });
 
