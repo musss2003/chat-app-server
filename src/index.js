@@ -39,19 +39,16 @@ const io = socketIO(server, {
 io.on("connection", (socket) => {
     console.log("New user connected");
 
-    socket.on("sendMessage", async (messageData) => {
-        const message = new Message({
-            content: messageData.content,
-            sender: messageData.sender,
-            receiver: messageData.receiver,
-        });
+    socket.on('joinRoom', ({ userId, selectedUserId }) => {
+        socket.join(`${userId}-${selectedUserId}`);
+    });
 
-        try {
-            await message.save();
-            io.emit("receiveMessage", message);
-        } catch (error) {
-            console.error("Error saving message:", error);
-        }
+    socket.on('sendMessage', async ({ sender, receiver, content }) => {
+        const message = new Message({ sender, receiver, content });
+        await message.save();
+
+        io.to(`${sender}-${receiver}`).emit('receiveMessage', message);
+        io.to(`${receiver}-${sender}`).emit('receiveMessage', message);
     });
 
     socket.on('userOnline', async (userId) => {
