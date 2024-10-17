@@ -3,11 +3,12 @@ const router = express.Router();
 const Message = require('../models/Message');
 const auth = require('../middlewares/auth');
 
-// Fetch all unique chat participants for the authenticated user
 // Fetch the last messages sent or received to or from different users for the authenticated user
 router.get('/chats', auth, async (req, res) => {
     try {
         const userId = req.user._id;
+
+        console.log('Fetching chats for user', userId);
 
         const messages = await Message.aggregate([
             {
@@ -74,26 +75,25 @@ router.get('/chats', auth, async (req, res) => {
             }
         ]);
 
-        console.log(messages);
-
         res.json(messages);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching chats' });
     }
 });
 
-module.exports = router;
-
-
 // Fetch chat history between authenticated user and another user
-router.get('/:receiverId', auth, async (req, res) => {
+router.get('/:selectedUserId', auth, async (req, res) => {
+    
+    console.log('Fetching messages between', req.user._id, 'and', req.params.selectedUserId);
+
     try {
         const messages = await Message.find({
             $or: [
-                { sender: req.user._id, receiver: req.params.receiverId },
-                { sender: req.params.receiverId, receiver: req.user._id },
+                { sender: req.user._id, receiver: req.params.selectedUserId },
+                { sender: req.params.selectedUserId, receiver: req.user._id },
             ],
         }).sort('timestamp');
+
         res.json(messages);
     } catch (error) {
         res.status(500).send('Server error');

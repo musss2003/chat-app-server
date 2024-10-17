@@ -60,7 +60,6 @@ io.on("connection", (socket) => {
             if (user) {
                 user.timeStamp = new Date();
                 await user.save();
-                console.log(`Updated timeStamp for user ${userId}`);
             }
         } catch (error) {
             console.error('Error updating timeStamp:', error);

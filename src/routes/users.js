@@ -8,18 +8,56 @@ router.use(auth);
 
 
 // Search users by query
+// Search users by query
 router.get('/search', auth, async (req, res) => {
     const query = req.query.query;
     const currentUserId = req.user._id; // Assuming req.user is set by the auth middleware
 
     try {
-        const users = await User.find({
-            $or: [
-                { username: { $regex: query, $options: 'i' } },
-                { email: { $regex: query, $options: 'i' } }
-            ],
-            _id: { $ne: currentUserId } // Exclude the current user
-        }).select('-password'); // Exclude the password field
+        const users = await User.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { username: { $regex: query, $options: 'i' } },
+                        { email: { $regex: query, $options: 'i' } }
+                    ],
+                    _id: { $ne: currentUserId } // Exclude the current user
+                }
+            },
+            {
+                $lookup: {
+                    from: 'messages',
+                    let: { userId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $or: [
+                                        { $and: [{ $eq: ['$sender', currentUserId] }, { $eq: ['$receiver', '$$userId'] }] },
+                                        { $and: [{ $eq: ['$receiver', currentUserId] }, { $eq: ['$sender', '$$userId'] }] }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            $sort: { timestamp: -1 }
+                        },
+                        {
+                            $limit: 1
+                        }
+                    ],
+                    as: 'lastMessage'
+                }
+            },
+            {
+                $project: {
+                    username: 1,
+                    email: 1,
+                    timeStamp: 1,
+                    lastMessage: { $arrayElemAt: ['$lastMessage', 0] }
+                }
+            }
+        ]);
 
         res.status(200).send(users);
     } catch (error) {
