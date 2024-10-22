@@ -11,9 +11,10 @@ const Message = require('./models/Message');
 const auth = require('./middlewares/auth');
 const User = require('./models/user');
 const getLastMessages = require('./routes/messages');
-
 const app = express();
 const server = http.createServer(app);
+
+const users = {}; // In-memory store for online users
 
 mongoose
     .connect(process.env.DB_CONNECTION, {
@@ -43,20 +44,35 @@ const io = socketIO(server, {
 
 // Handle incoming socket connections
 io.on("connection", (socket) => {
-    console.log('User connected:', socket.id);
 
     // Joining a room for a private 1:1 chat
     socket.on('joinRoom', ({ userId, selectedUserId }) => {
         const roomId = [userId, selectedUserId].sort().join('-'); // Create a unique room ID
         socket.join(roomId);
-        console.log(`User ${userId} joined room: ${roomId}`);
     });
 
-        // Joining a room for a listening to a user alone
-        socket.on('joinRoomAlone', ({ userId }) => {
-            socket.join(userId);
-            console.log(`User ${userId} joined room: ${userId}`);
-        });
+    // Joining a room for a listening to a user alone
+    socket.on('joinRoomAlone', ({ userId }) => {
+        socket.join(userId);
+
+    });
+
+    // Example server-side code for handling typing events
+    socket.on('typing', ({ senderId, receiverId }) => {
+        // Emit to the room both users share (roomId could be unique based on the two users)
+        const roomId = `${senderId}-${receiverId}`;
+
+        socket.to(roomId).emit('typing', { senderId });
+        socket.to(receiverId).emit('typing', { senderId });
+    });
+
+    socket.on('stopTyping', ({ senderId, receiverId }) => {
+        const roomId = `${senderId}-${receiverId}`;
+        
+        socket.to(roomId).emit('stopTyping', { senderId });
+        socket.to(receiverId).emit('typing', { senderId });
+    });
+
 
     // Listening for new messages
     socket.on('sendMessage', async (messageData) => {
@@ -69,6 +85,7 @@ io.on("connection", (socket) => {
                 timestamp: new Date(),
                 read: false,
             });
+
             await newMessage.save();
 
             // Broadcast the message to the room
@@ -77,29 +94,43 @@ io.on("connection", (socket) => {
             io.to(roomId).emit('receiveMessage', newMessage); // Emit to both users in the room
 
             io.to(messageData.receiver).emit('refreshChatList', 'Chat list should be refreshed.'); // Emit to the receiver alone
-            console.log(messageData.receiver + ' should refresh chat list');
+
         } catch (error) {
             console.error('Error saving or sending message:', error);
         }
     });
+
     socket.on('userOnline', async (userId) => {
         const user = await User.findById(userId);
         user.timeStamp = new Date();
         await user.save();
-        console.log(`User ${user.username} is online`);
+        users[userId] = socket.id;
+
+        io.emit('updateUserStatus', { userId, status: 'online' });
     });
 
     // Marking messages as read (optional feature)
-    socket.on('markMessagesAsRead', async ({ userId, chatId }) => {
+    socket.on('markMessagesAsRead', async ({ userId, selectedUserId }) => {
         await Message.updateMany(
-            { sender: chatId, receiver: userId, read: false },
+            { sender: selectedUserId, receiver: userId, read: false },
             { $set: { read: true } }
         );
+
+        io.to(userId).emit('refreshChatList', 'Chat list should be refreshed.'); // Emit to the receiver alone
+
+        console.log(`Marked messages as read from user ${selectedUserId} to user ${userId}`);
+
     });
 
     // When a user disconnects
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
+        for (let userId in users) {
+            if (users[userId] === socket.id) {
+                delete users[userId];
+                io.emit('updateUserStatus', { userId, status: 'offline' });
+                break;
+            }
+        }
     });
 });
 

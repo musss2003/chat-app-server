@@ -83,11 +83,11 @@ const getLastMessages = async (userId) => {
 
 // Endpoint to mark messages as read
 router.post('/markAsRead', async (req, res) => {
-    const { userId, chatId } = req.body;
+    const { userId, selectedUserId } = req.body;
 
     try {
         await Message.updateMany(
-            { sender: chatId, receiver: userId, read: false },
+            { sender: selectedUserId, receiver: userId, read: false },
             { $set: { read: true } }
         );
         res.status(200).send({ message: 'Messages marked as read' });
@@ -101,8 +101,6 @@ router.post('/markAsRead', async (req, res) => {
 router.get('/chats', auth, async (req, res) => {
     try {
         const userId = req.user._id;
-
-        console.log('Fetching chats for user', userId);
 
         const messages = await getLastMessages(userId);
 
@@ -126,35 +124,6 @@ router.get('/:selectedUserId', auth, async (req, res) => {
         res.json(messages);
     } catch (error) {
         res.status(500).send('Server error');
-    }
-});
-
-// Send a new message
-router.post('/send', auth, async (req, res) => {
-    try {
-        const { receiver, content } = req.body;
-        const sender = req.user._id;
-        
-        const newMessage = new Message({
-            sender,
-            receiver,
-            content,
-            timestamp: new Date(),
-            read: false
-        });
-
-        await newMessage.save();
-
-        // Emit the message to both the sender and receiver's rooms
-        io.to(sender.toString()).emit('receiveMessage', newMessage);
-        io.to(receiver.toString()).emit('receiveMessage', newMessage);
-
-        // Update chat list for both participants
-        await updateChatListData(sender, receiver, newMessage);
-
-        res.status(201).json(newMessage);
-    } catch (error) {
-        res.status(500).json({ message: 'Error sending message' });
     }
 });
 
