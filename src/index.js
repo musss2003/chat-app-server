@@ -17,12 +17,7 @@ const server = http.createServer(app);
 const users = {}; // In-memory store for online users
 
 mongoose
-    .connect(process.env.DB_CONNECTION, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
-        socketTimeoutMS: 45000, // Increase socket timeout to 45 seconds
-    })
+    .connect(process.env.DB_CONNECTION)
     .then(() => console.log("MongoDB connected"))
     .catch((err) => console.log("MongoDB connection error:", err));
 
