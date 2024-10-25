@@ -42,30 +42,30 @@ io.on("connection", (socket) => {
 
     // Joining a room for a private 1:1 chat
     socket.on('joinRoom', ({ userId, selectedUserId }) => {
-        const roomId = [userId, selectedUserId].sort().join('-'); // Create a unique room ID
-        socket.join(roomId);
-    });
-
-    // Joining a room for a listening to a user alone
-    socket.on('joinRoomAlone', ({ userId }) => {
-        socket.join(userId);
-
+        if(selectedUserId){
+            const roomId = [userId, selectedUserId].sort().join('-'); // Unique room for both users
+            socket.join(roomId);
+            console.log(`User ${userId} joined room ${roomId}`);
+        }else{
+            socket.join(userId); // Join user's individual room
+            console.log(`User ${userId} joined their own room`);
+        }
     });
 
     // Example server-side code for handling typing events
     socket.on('typing', ({ senderId, receiverId }) => {
         // Emit to the room both users share (roomId could be unique based on the two users)
-        const roomId = `${senderId}-${receiverId}`;
-
+        const roomId = [senderId, receiverId].sort().join('-');
+        socket.to(receiverId).emit('typing', { senderId }); // Directly to receiver's room
         socket.to(roomId).emit('typing', { senderId });
-        socket.to(receiverId).emit('typing', { senderId });
+        console.log(`${senderId} is typing...`);
     });
 
     socket.on('stopTyping', ({ senderId, receiverId }) => {
-        const roomId = `${senderId}-${receiverId}`;
-        
+        // Emit to the room both users share (roomId could be unique based on the two users)
+        const roomId = [senderId, receiverId].sort().join('-');
+        socket.to(receiverId).emit('stopTyping', { senderId }); // Directly to receiver's room
         socket.to(roomId).emit('stopTyping', { senderId });
-        socket.to(receiverId).emit('typing', { senderId });
     });
 
 
