@@ -63,6 +63,12 @@ This chat application allows users to create accounts, log in, and chat with oth
    - The application is designed to be responsive and user-friendly on both desktop and mobile devices.
    - Adapts to various screen sizes for optimal usability.
 
+      ![Chat Application Responsive Start](src/assets/responsive_1.png)
+   
+      ![Chat Application Responsive Sidebar](src/assets/responsive_2.png)
+   
+      ![Chat Application Responsive Chat](src/assets/responsive_3.png)
+
 ## Technologies Used
 - **React** - For building the user interface.
 - **Express** - Backend framework for handling API requests.
